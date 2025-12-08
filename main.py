@@ -1,10 +1,11 @@
 import sys
 import pandas as pd
 from config.settings import DATA_RAW_DIR, DATA_PROCESSED_DIR, SENSOR_COLS, WINDOW_SIZE
-# Importamos la nueva función
 from src.data_loader import load_raw_data, download_dataset_if_missing
 from src.numerical_ops import apply_moving_average, calculate_slope
 from src.feature_eng import add_rul_target
+from src.visualization import plot_sensor_trends
+from config.settings import BASE_DIR
 
 def main():
     print("[INFO] Starting Predictive Maintenance ETL Pipeline...")
@@ -50,6 +51,23 @@ def main():
 
     print("[INFO] Pipeline finished successfully.")
 
+    # 6. Visualization Reporting
+    print("[INFO] Generating visual reports...")
+
+    # Define report directory
+    reports_dir = BASE_DIR / "reports" / "figures"
+
+    # We choose Unit 1 as a sample for the portfolio
+    sample_unit = 1
+    sample_sensors = ['s_2', 's_4', 's_7', 's_11']  # Sensores con alta correlación a fallas
+
+    plot_path = reports_dir / f"unit_{sample_unit}_analysis.png"
+
+    # Verificamos que las columnas existan antes de graficar
+    # (El código de plot maneja internamente si falta alguna, pero es buena práctica)
+    plot_sensor_trends(df, unit_nr=sample_unit, sensors=sample_sensors, save_path=plot_path)
+
+    print("[INFO] Pipeline finished successfully.")
 
 if __name__ == "__main__":
     main()
