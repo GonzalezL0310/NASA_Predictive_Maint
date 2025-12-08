@@ -1,73 +1,80 @@
 import sys
 import pandas as pd
-from config.settings import DATA_RAW_DIR, DATA_PROCESSED_DIR, SENSOR_COLS, WINDOW_SIZE
+from config.settings import (
+    DATA_RAW_DIR,
+    DATA_PROCESSED_DIR,
+    SENSOR_COLS,
+    WINDOW_SIZE,
+    SENSOR_MAP
+)
 from src.data_loader import load_raw_data, download_dataset_if_missing
 from src.numerical_ops import apply_moving_average, calculate_slope
-from src.feature_eng import add_rul_target
-from src.visualization import plot_sensor_trends
-from config.settings import BASE_DIR
+from src.feature_eng import add_rul_target, add_health_status
+from src.metadata_gen import generate_sensor_metadata
+from src.visualization import plot_sensor_trends  # Mantenemos esto para generar reports internos
+
 
 def main():
-    print("[INFO] Starting Predictive Maintenance ETL Pipeline...")
+    print("[INFO] Starting Predictive Maintenance ETL Pipeline (BI Layer)...")
 
-    # 1. Data Ingestion (Auto-Download logic)
-    # We ask the data loader to ensure the file is there.
+    # --- 1. METADATA GENERATION (DIMENSION TABLE) ---
+    metadata_path = DATA_PROCESSED_DIR / "sensor_metadata.csv"
+    generate_sensor_metadata(metadata_path)
+
+    # --- 2. DATA INGESTION ---
     try:
         input_file = download_dataset_if_missing("train_FD001.txt")
-        output_file = DATA_PROCESSED_DIR / "train_FD001_processed.csv"
-    except Exception as e:
-        print(f"[ERROR] Failed to download or locate dataset: {e}")
-        sys.exit(1)
-
-    # 2. Loading
-    try:
-        print(f"[INFO] Loading data from {input_file}...")
         df = load_raw_data(input_file)
-        print(f"[INFO] Data loaded. Shape: {df.shape}")
-    except FileNotFoundError as e:
-        # This catch is double-check, though step 1 should handle it.
-        print(f"[ERROR] {e}")
+    except Exception as e:
+        print(f"[ERROR] Setup failed: {e}")
         sys.exit(1)
 
-    # 3. Numerical Ops (Cleaning and Feature Engineering)
-    # Selecting some key sensors for the example (or all based on settings)
-    sensors_to_process = ['s_2', 's_3', 's_4', 's_7', 's_11', 's_12']
-    # Filter only those that exist in SENSOR_COLS to avoid errors
+    # --- 3. NUMERICAL PROCESSING (KERNEL) ---
+    # We keep using raw IDs (s_2, s_3) here to maintain code stability
+    sensors_to_process = ['s_2', 's_3', 's_4', 's_7', 's_11', 's_12', 's_15', 's_17', 's_20', 's_21']
     target_sensors = [s for s in sensors_to_process if s in SENSOR_COLS]
 
-    print(f"[INFO] Applying Moving Average (Window={WINDOW_SIZE})...")
+    print(f"[INFO] Applying Moving Average & Vectorized Slope (Window={WINDOW_SIZE})...")
     df = apply_moving_average(df, target_sensors, WINDOW_SIZE)
-
-    print(f"[INFO] Calculating Degradation Slope (Vectorized)...")
     df = calculate_slope(df, target_sensors, WINDOW_SIZE)
 
-    # 4. Feature Engineering (Target)
-    print("[INFO] Generating RUL (Remaining Useful Life) target...")
+    # --- 4. FEATURE ENGINEERING ---
+    print("[INFO] Calculating RUL and Health Status...")
     df = add_rul_target(df)
+    df = add_health_status(df)
 
-    # 5. Saving
-    print(f"[INFO] Saving processed dataset to {output_file}...")
-    df.to_csv(output_file, index=False)
+    # --- 5. RENAMING & PROJECTION (SERVING LAYER) ---
+    print("[INFO] Renaming columns to Engineering Terms for BI...")
 
-    print("[INFO] Pipeline finished successfully.")
+    # 5.1 Create a renaming dictionary
+    # Map 's_x' -> 'Technical_Name'
+    rename_dict = {k: v[0] for k, v in SENSOR_MAP.items()}
 
-    # 6. Visualization Reporting
-    print("[INFO] Generating visual reports...")
+    # 5.2 Also map the generated columns (_ma and _slope)
+    # Strategy: s_2_slope -> LPC_Outlet_Temp_Slope
+    for s_id, (tech_name, _, _) in SENSOR_MAP.items():
+        rename_dict[f"{s_id}_ma"] = f"{tech_name}_MA"
+        rename_dict[f"{s_id}_slope"] = f"{tech_name}_Slope"
 
-    # Define report directory
-    reports_dir = BASE_DIR / "reports" / "figures"
+    # Apply renaming
+    df_bi = df.rename(columns=rename_dict)
 
-    # We choose Unit 1 as a sample for the portfolio
-    sample_unit = 1
-    sample_sensors = ['s_2', 's_4', 's_7', 's_11']  # Sensores con alta correlación a fallas
+    # 5.3 Select clean columns for the final Fact Table
+    # We remove 'setting_1', etc if not needed, but for now we keep everything
+    # just with better names.
 
-    plot_path = reports_dir / f"unit_{sample_unit}_analysis.png"
+    # --- 6. EXPORT ---
+    fact_table_path = DATA_PROCESSED_DIR / "engine_data.csv"
+    print(f"[INFO] Exporting Fact Table to {fact_table_path}...")
+    df_bi.to_csv(fact_table_path, index=False)
 
-    # Verificamos que las columnas existan antes de graficar
-    # (El código de plot maneja internamente si falta alguna, pero es buena práctica)
-    plot_sensor_trends(df, unit_nr=sample_unit, sensors=sample_sensors, save_path=plot_path)
+    # Optional: Generate one internal plot with new names to verify
+    # (We skip this for now to focus on data export as requested)
 
-    print("[INFO] Pipeline finished successfully.")
+    print("[INFO] BI Data Preparation Complete.")
+    print(f"   -> Dimension Table: {metadata_path}")
+    print(f"   -> Fact Table:      {fact_table_path}")
+
 
 if __name__ == "__main__":
     main()
