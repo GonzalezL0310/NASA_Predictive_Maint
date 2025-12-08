@@ -1,17 +1,22 @@
 import sys
 import pandas as pd
 from config.settings import DATA_RAW_DIR, DATA_PROCESSED_DIR, SENSOR_COLS, WINDOW_SIZE
-from src.data_loader import load_raw_data
+# Importamos la nueva función
+from src.data_loader import load_raw_data, download_dataset_if_missing
 from src.numerical_ops import apply_moving_average, calculate_slope
 from src.feature_eng import add_rul_target
-
 
 def main():
     print("[INFO] Starting Predictive Maintenance ETL Pipeline...")
 
-    # 1. Define paths
-    input_file = DATA_RAW_DIR / "train_FD001.txt"
-    output_file = DATA_PROCESSED_DIR / "train_FD001_processed.csv"
+    # 1. Data Ingestion (Auto-Download logic)
+    # We ask the data loader to ensure the file is there.
+    try:
+        input_file = download_dataset_if_missing("train_FD001.txt")
+        output_file = DATA_PROCESSED_DIR / "train_FD001_processed.csv"
+    except Exception as e:
+        print(f"[ERROR] Failed to download or locate dataset: {e}")
+        sys.exit(1)
 
     # 2. Loading
     try:
@@ -19,6 +24,7 @@ def main():
         df = load_raw_data(input_file)
         print(f"[INFO] Data loaded. Shape: {df.shape}")
     except FileNotFoundError as e:
+        # This catch is double-check, though step 1 should handle it.
         print(f"[ERROR] {e}")
         sys.exit(1)
 

@@ -21,18 +21,17 @@ NASA_Predictive_Maint/
 └── requirements.txt    # Dependencies
 ```
 
-Setup & Usage
-
-    Install Dependencies:
-    Bash
-
+## Setup & Usage
+Install Dependencies: Bash
+```
 pip install -r requirements.txt
-
-```textmate
-Data Placement: Download the train_FD001.txt file from the NASA CMAPSS 
-repository and place it in data/raw/.
 ```
 
+Data Placement 
+```text
+Download the train_FD001.txt file from the NASA CMAPSS 
+repository and place it in data/raw/.
+```
 
 Run Pipeline:
 Bash
