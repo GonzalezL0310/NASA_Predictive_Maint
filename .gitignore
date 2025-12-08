@@ -1,0 +1,21 @@
+# Python internals
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDE settings (PyCharm, VSCode)
+.idea/
+.vscode/
+*.swp
+
+# Virtual Environment
+venv/
+env/
+
+# Data Files (Never commit large datasets)
+data/raw/*
+data/processed/*
+
+# Keep the folder structure even if empty
+!data/raw/.gitkeep
+!data/processed/.gitkeep
