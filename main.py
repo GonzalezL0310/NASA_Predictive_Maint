@@ -11,7 +11,7 @@ from src.data_loader import load_raw_data, download_dataset_if_missing
 from src.numerical_ops import apply_moving_average, calculate_slope
 from src.feature_eng import add_rul_target, add_health_status
 from src.metadata_gen import generate_sensor_metadata
-from src.visualization import plot_sensor_trends  # Mantenemos esto para generar reports internos
+from src.visualization import plot_sensor_trends
 
 
 def main():
@@ -59,18 +59,11 @@ def main():
     # Apply renaming
     df_bi = df.rename(columns=rename_dict)
 
-    # 5.3 Select clean columns for the final Fact Table
-    # We remove 'setting_1', etc if not needed, but for now we keep everything
-    # just with better names.
-
     # --- 6. EXPORT ---
     fact_table_path = DATA_PROCESSED_DIR / "engine_data.csv"
     print(f"[INFO] Exporting Fact Table to {fact_table_path}...")
     df_bi.to_csv(fact_table_path, index=False)
-
-    # Optional: Generate one internal plot with new names to verify
-    # (We skip this for now to focus on data export as requested)
-
+    
     print("[INFO] BI Data Preparation Complete.")
     print(f"   -> Dimension Table: {metadata_path}")
     print(f"   -> Fact Table:      {fact_table_path}")
