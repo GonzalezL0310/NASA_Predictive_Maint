@@ -27,7 +27,11 @@ def download_dataset_if_missing(filename: str = "train_FD001.txt") -> Path:
 
     # 2. Download latest version (Returns path to the cache folder)
     # Note: This specific dataset is public, so no API key is usually required for kagglehub.
-    cache_path = kagglehub.dataset_download("palbha/cmapss-jet-engine-simulated-data")
+    try:
+        cache_path = kagglehub.dataset_download("palbha/cmapss-jet-engine-simulated-data")
+    except Exception as e:
+        print(f"[ERROR] Failed to connect to Kaggle: {e}")
+        raise
 
     # 3. Locate the specific file in the downloaded folder
     downloaded_file = Path(cache_path) / filename
