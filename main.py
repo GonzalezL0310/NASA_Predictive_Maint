@@ -59,7 +59,27 @@ def main():
     # Apply renaming
     df_bi = df.rename(columns=rename_dict)
 
-    # --- 6. EXPORT ---
+    # --- 6. DIAGNOSTIC REPORTING ---
+    # Reintegramos la visualización para validar físicamente la degradación antes del export
+    print("[INFO] Generating diagnostic reports for internal audit...")
+    
+    # Definimos ruta de reportes (usando BASE_DIR que ya está en settings)
+    from config.settings import BASE_DIR
+    report_folder = BASE_DIR / "reports" / "figures"
+    
+    # Seleccionamos sensores críticos según el paper para validar la tendencia exponencial
+    # Usamos los nombres técnicos ya que df_bi está renombrado
+    audit_sensors = ['LPT_Outlet_Temp', 'HPC_Outlet_Press']
+    unit_to_audit = 1 # Motor de prueba
+    
+    plot_sensor_trends(
+        df=df_bi,
+        unit_nr=unit_to_audit,
+        sensors=audit_sensors,
+        save_path=report_folder / f"unit_{unit_to_audit}_analysis.png"
+    )
+
+    # --- 7. EXPORT ---
     fact_table_path = DATA_PROCESSED_DIR / "engine_data.csv"
     print(f"[INFO] Exporting Fact Table to {fact_table_path}...")
     df_bi.to_csv(fact_table_path, index=False)
